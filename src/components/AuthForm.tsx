@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useAuth } from "./AuthProvider";
 import { PASSWORD_RULES, USERNAME_RULES } from "@/lib/auth/validate";
@@ -11,7 +11,6 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
   const isSignup = mode === "signup";
   const { user, login, signup } = useAuth();
   const router = useRouter();
-  const searchParams = useSearchParams();
 
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -19,9 +18,21 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
-  // Only allow relative redirects, so ?next= cannot bounce to another site.
-  const rawNext = searchParams.get("next") ?? "/account";
-  const next = rawNext.startsWith("/") && !rawNext.startsWith("//") ? rawNext : "/account";
+  /**
+   * Where to go after signing in. Read from the query string with a lazy
+   * initialiser rather than `useSearchParams`, which would opt this page out of
+   * prerendering and make the form appear only after hydration.
+   *
+   * Only relative paths are accepted, so `?next=` cannot bounce someone to
+   * another site after login (an open-redirect).
+   */
+  const [next] = useState(() => {
+    if (typeof window === "undefined") return "/account";
+    const requested = new URLSearchParams(window.location.search).get("next");
+    return requested?.startsWith("/") && !requested.startsWith("//")
+      ? requested
+      : "/account";
+  });
 
   useEffect(() => {
     if (user) router.replace(next);
@@ -110,11 +121,7 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
         <p className="mt-6 text-center text-sm text-muted">
           {isSignup ? "Already have an account? " : "New here? "}
           <Link
-            href={
-              isSignup
-                ? `/login?next=${encodeURIComponent(next)}`
-                : `/signup?next=${encodeURIComponent(next)}`
-            }
+            href={isSignup ? "/login" : "/signup"}
             className="font-medium text-accent hover:underline"
           >
             {isSignup ? "Sign in" : "Create an account"}

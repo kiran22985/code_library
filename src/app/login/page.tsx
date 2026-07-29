@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import { Suspense } from "react";
 import { AuthForm } from "@/components/AuthForm";
 
 export const metadata: Metadata = {
@@ -8,10 +7,5 @@ export const metadata: Metadata = {
 };
 
 export default function LoginPage() {
-  // useSearchParams needs a Suspense boundary in a prerendered page.
-  return (
-    <Suspense>
-      <AuthForm mode="login" />
-    </Suspense>
-  );
+  return <AuthForm mode="login" />;
 }
