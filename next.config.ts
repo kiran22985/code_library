@@ -1,23 +1,17 @@
 import type { NextConfig } from "next";
 
-/**
- * When the site is served from a subdirectory — which is what GitHub Pages does
- * for a project site (username.github.io/repo-name) — every internal link and
- * asset URL needs that prefix. The deploy workflow sets this automatically;
- * locally it stays empty so `npm run dev` serves from `/`.
- */
-const basePath = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
-
 const nextConfig: NextConfig = {
   /**
-   * Fully static output: `npm run build` emits an `out/` directory that can be
-   * dropped on GitHub Pages, Netlify, S3 or any plain web server.
+   * The site used to be a fully static export. Adding accounts means it now
+   * needs a server for the /api/auth and /api/progress routes, so it runs as a
+   * Next.js server (Render Web Service).
+   *
+   * Everything else is unchanged: all 76 lesson pages are still prerendered at
+   * build time and served as static HTML. Only the API routes are dynamic, and
+   * the session is read from the client, so pages stay cacheable.
    */
-  output: "export",
   images: { unoptimized: true },
   trailingSlash: true,
-  basePath,
-  assetPrefix: basePath || undefined,
 };
 
 export default nextConfig;

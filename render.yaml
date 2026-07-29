@@ -1,0 +1,43 @@
+# Render Blueprint — https://render.com/docs/blueprint-spec
+#
+# The site now has user accounts, so it needs a server and a database:
+#   * a Node Web Service running `next start`
+#   * a managed Postgres instance for users, sessions and progress
+#
+# Lesson pages are still prerendered at build time — only /api/* is dynamic.
+#
+# To deploy: Render Dashboard -> New -> Blueprint -> pick this repository.
+
+services:
+  - type: web
+    name: codelibrary
+    runtime: node
+    plan: free
+
+    # --include=dev because the build needs TypeScript and Tailwind, and Render
+    # sets NODE_ENV=production (which would otherwise skip devDependencies).
+    buildCommand: npm ci --include=dev && npm run build
+
+    # Migrations are idempotent, so running them on every boot is safe and
+    # means a fresh database is ready before the first request arrives.
+    startCommand: npm run migrate && npm start
+
+    healthCheckPath: /
+
+    envVars:
+      - key: NODE_VERSION
+        value: "22.17.1"
+      - key: DATABASE_URL
+        fromDatabase:
+          name: codelibrary-db
+          property: connectionString
+      # Set this in the dashboard once you know the URL, e.g.
+      # https://codelibrary.onrender.com — it only affects sitemap.xml.
+      - key: NEXT_PUBLIC_SITE_URL
+        sync: false
+
+databases:
+  - name: codelibrary-db
+    plan: free
+    databaseName: codelibrary
+    user: codelibrary

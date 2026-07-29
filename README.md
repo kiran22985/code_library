@@ -102,41 +102,67 @@ unique within a course, since the route is `/[course]/[slug]`.
 
 ## Deployment
 
+The project is hosted on **Render** as a Static Site.
+
+> This is a Node project, so its dependency manifest is `package.json` — there
+> is no `requirements.txt` (that is a Python file, and adding one would confuse
+> Render's runtime detection).
+
+### Render
+
+[`render.yaml`](render.yaml) is a Blueprint, so Render configures itself:
+
+1. Push this repository to GitHub or GitLab.
+2. Render Dashboard → **New** → **Blueprint** → select the repository.
+3. Render reads `render.yaml`, runs `npm ci && npm run build`, and serves `out/`
+   from its CDN. Every push to the default branch redeploys automatically.
+
+Setting it up by hand instead (**New → Static Site**) needs exactly two fields:
+
+| Field | Value |
+| --- | --- |
+| Build command | `npm ci && npm run build` |
+| Publish directory | `out` |
+
+After the first deploy, set `NEXT_PUBLIC_SITE_URL` in the Render dashboard to
+the live URL (e.g. `https://codelibrary.onrender.com`) so `sitemap.xml` contains
+absolute URLs, then redeploy. Nothing else depends on it.
+
+**Static Site, not Web Service.** A Static Site is free, has no cold starts and
+serves from a CDN. A Web Service would spin up a Node process for no reason —
+this site has no server-side code. It would also fail, because `next start` does
+not work with `output: "export"`.
+
+Render serves `/python/intro/` from `out/python/intro/index.html` and the export
+includes a `404.html` for unknown paths.
+
+### Local preview of the production build
+
 ```bash
-NEXT_PUBLIC_SITE_URL=https://your-domain.com npm run build   # then serve out/
+npm run build
+npm start            # serves ./out on http://localhost:3000
 ```
 
-`NEXT_PUBLIC_SITE_URL` only affects the absolute URLs in `sitemap.xml`.
-`trailingSlash: true` is already enabled so directory-style URLs work on any
-static host.
+### GitHub Pages (optional, disabled)
 
-### GitHub Pages
+[`.github/workflows/deploy.yml`](.github/workflows/deploy.yml) can publish a
+copy to GitHub Pages. It is set to **manual only** (Actions tab → Run workflow)
+so it does not run alongside Render; delete the file if you do not want it.
 
-[`.github/workflows/deploy.yml`](.github/workflows/deploy.yml) builds and
-publishes on every push to `main`. To turn it on: **Settings → Pages → Build and
-deployment → Source: GitHub Actions**, then push.
-
-The workflow handles the two things that normally break Next.js on Pages:
-
-- **Sub-path hosting.** A project site is served from
-  `username.github.io/repo-name`, so assets and links need that prefix. The
-  workflow derives it from the repository name and passes it as
-  `NEXT_PUBLIC_BASE_PATH`, which `next.config.ts` applies as `basePath` /
-  `assetPrefix`. A `username.github.io` repository gets an empty prefix
-  automatically. Local `npm run dev` is unaffected.
-- **Jekyll.** Pages runs Jekyll by default, and Jekyll ignores directories that
-  start with an underscore — which would delete Next's entire `_next/` asset
-  folder. The workflow writes an `.nojekyll` marker to disable it.
+It handles the two things that normally break Next.js on Pages: the sub-path
+prefix (`NEXT_PUBLIC_BASE_PATH` → `basePath`/`assetPrefix` in
+[`next.config.ts`](next.config.ts), derived from the repository name) and the
+`.nojekyll` marker, without which Jekyll strips Next's `_next/` asset folder.
 
 To preview a sub-path build locally:
 
 ```bash
 NEXT_PUBLIC_BASE_PATH=/Code_library npm run build
-npx serve out          # visit http://localhost:3000/Code_library/
+npm start            # visit http://localhost:3000/Code_library/
 ```
 
 ### Other static hosts
 
 Cloudflare Pages, Netlify and Vercel all work with zero configuration: build
-command `npm run build`, output directory `out`. None of them need
-`NEXT_PUBLIC_BASE_PATH`, since they serve from a domain root.
+command `npm run build`, output directory `out`. Like Render, they serve from a
+domain root, so `NEXT_PUBLIC_BASE_PATH` stays unset.

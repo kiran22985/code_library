@@ -6,6 +6,7 @@ import { useEffect, useState, useSyncExternalStore } from "react";
 import type { SearchItem } from "@/lib/courses";
 import { SearchDialog, SearchIcon } from "./SearchDialog";
 import { ThemeToggle } from "./ThemeToggle";
+import { UserMenu } from "./UserMenu";
 
 const NAV = [
   { href: "/courses", label: "Courses" },
@@ -95,6 +96,7 @@ export function SiteHeader({ index }: { index: SearchItem[] }) {
             </button>
 
             <ThemeToggle />
+            <UserMenu />
 
             <button
               type="button"
