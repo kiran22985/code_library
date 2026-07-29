@@ -1,26 +1,231 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* ---------------------------------------------------------------------------
+   Design tokens
+   --------------------------------------------------------------------------- */
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --bg: #ffffff;
+  --bg-soft: #f7f8fb;
+  --surface: #ffffff;
+  --surface-2: #f1f4f9;
+  --line: #e3e8ef;
+  --line-strong: #cfd6e2;
+  --fg: #0d1425;
+  --fg-soft: #3d4759;
+  --muted: #667085;
+  --accent: #4f46e5;
+  --accent-hover: #4338ca;
+  --accent-soft: #eef2ff;
+  --accent-line: #c7d2fe;
+  --on-accent: #ffffff;
+  --python: #2f6fae;
+  --python-alt: #b8860b;
+  --success: #0f8a5f;
+  --warn: #b45309;
+  --danger: #be123c;
+
+  /* code tokens (the code surface stays dark in both themes) */
+  --code-bg: #0f131c;
+  --code-line: #1f2735;
+  --code-fg: #dce3ee;
+  --tok-comment: #6b7a91;
+  --tok-keyword: #c792ea;
+  --tok-string: #9ece6a;
+  --tok-number: #ffa657;
+  --tok-builtin: #7dcfff;
+  --tok-fn: #7aa2f7;
+  --tok-class: #ffd479;
+  --tok-decorator: #f7768e;
+  --tok-op: #89ddff;
+  --tok-punct: #8794ad;
+}
+
+.dark {
+  --bg: #070910;
+  --bg-soft: #0b0e17;
+  --surface: #0f131c;
+  --surface-2: #151a26;
+  --line: #212836;
+  --line-strong: #2f394b;
+  --fg: #e9edf5;
+  --fg-soft: #c2cbdb;
+  --muted: #8d99ae;
+  --accent: #818cf8;
+  --accent-hover: #a5b4fc;
+  --accent-soft: #171a2e;
+  --accent-line: #313a63;
+  --on-accent: #0b0e17;
+  --python: #6cb6ff;
+  --python-alt: #ffd979;
+  --success: #34d399;
+  --warn: #fbbf24;
+  --danger: #fb7185;
+
+  --code-bg: #0b0e16;
+  --code-line: #1b2231;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-bg: var(--bg);
+  --color-bg-soft: var(--bg-soft);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-fg: var(--fg);
+  --color-fg-soft: var(--fg-soft);
+  --color-muted: var(--muted);
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-accent-soft: var(--accent-soft);
+  --color-accent-line: var(--accent-line);
+  --color-on-accent: var(--on-accent);
+  --color-python: var(--python);
+  --color-python-alt: var(--python-alt);
+  --color-success: var(--success);
+  --color-warn: var(--warn);
+  --color-danger: var(--danger);
+  --color-code-bg: var(--code-bg);
+  --color-code-line: var(--code-line);
+
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, SFMono-Regular, monospace;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+/* ---------------------------------------------------------------------------
+   Base
+   --------------------------------------------------------------------------- */
+
+* {
+  border-color: var(--line);
+}
+
+html {
+  scroll-behavior: smooth;
+  scroll-padding-top: 6rem;
+  -webkit-text-size-adjust: 100%;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background-color: var(--bg);
+  color: var(--fg);
+  font-family: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+}
+
+::selection {
+  background: var(--accent);
+  color: var(--on-accent);
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Thin, unobtrusive scrollbars for nav rails and code blocks */
+.scroll-thin {
+  scrollbar-width: thin;
+  scrollbar-color: var(--line-strong) transparent;
+}
+.scroll-thin::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+.scroll-thin::-webkit-scrollbar-thumb {
+  background: var(--line-strong);
+  border-radius: 999px;
+}
+.scroll-thin::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* ---------------------------------------------------------------------------
+   Syntax highlighting
+   --------------------------------------------------------------------------- */
+
+.tok-comment {
+  color: var(--tok-comment);
+  font-style: italic;
+}
+.tok-keyword {
+  color: var(--tok-keyword);
+}
+.tok-string {
+  color: var(--tok-string);
+}
+.tok-number {
+  color: var(--tok-number);
+}
+.tok-builtin {
+  color: var(--tok-builtin);
+}
+.tok-fn {
+  color: var(--tok-fn);
+}
+.tok-class {
+  color: var(--tok-class);
+}
+.tok-decorator {
+  color: var(--tok-decorator);
+}
+.tok-op {
+  color: var(--tok-op);
+}
+.tok-punct {
+  color: var(--tok-punct);
+}
+.tok-self {
+  color: var(--tok-decorator);
+  font-style: italic;
+}
+.tok-plain {
+  color: var(--code-fg);
+}
+
+/* ---------------------------------------------------------------------------
+   Utilities
+   --------------------------------------------------------------------------- */
+
+@utility grid-backdrop {
+  background-image:
+    linear-gradient(
+      to right,
+      color-mix(in srgb, var(--line) 70%, transparent) 1px,
+      transparent 1px
+    ),
+    linear-gradient(
+      to bottom,
+      color-mix(in srgb, var(--line) 70%, transparent) 1px,
+      transparent 1px
+    );
+  background-size: 44px 44px;
+  mask-image: radial-gradient(ellipse 80% 60% at 50% 0%, #000 35%, transparent 100%);
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.animate-rise {
+  animation: rise 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  .animate-rise {
+    animation: none;
+  }
 }
