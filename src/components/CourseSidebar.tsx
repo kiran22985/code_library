@@ -23,15 +23,14 @@ export function CourseSidebar({
   modules: SidebarModule[];
 }) {
   const pathname = usePathname();
-  const { completed, ready } = useProgress(courseSlug);
+  const { completed } = useProgress(courseSlug);
   const [open, setOpen] = useState(false);
   const activeRef = useRef<HTMLAnchorElement>(null);
 
   const currentSlug = pathname.split("/").filter(Boolean)[1];
   const total = modules.reduce((sum, module) => sum + module.lessons.length, 0);
   const done = completed.length;
-
-  useEffect(() => setOpen(false), [pathname]);
+  const percent = total ? (done / total) * 100 : 0;
 
   // Keep the active lesson visible when the rail is taller than the viewport.
   useEffect(() => {
@@ -43,6 +42,7 @@ export function CourseSidebar({
       <button
         type="button"
         onClick={() => setOpen((value) => !value)}
+        aria-expanded={open}
         className="sticky top-16 z-30 flex w-full items-center gap-2 border-b border-line bg-bg/90 px-4 py-3 text-sm font-medium text-fg backdrop-blur lg:hidden"
       >
         <svg viewBox="0 0 24 24" className="size-4" fill="none" stroke="currentColor" strokeWidth="1.8">
@@ -50,7 +50,7 @@ export function CourseSidebar({
         </svg>
         Course contents
         <span className="ml-auto text-xs text-muted">
-          {ready ? `${done}/${total}` : `${total} lessons`}
+          {done}/{total}
         </span>
       </button>
 
@@ -58,19 +58,17 @@ export function CourseSidebar({
         aria-label="Course contents"
         className={`${
           open ? "block" : "hidden"
-        } border-b border-line bg-bg px-2 py-4 lg:sticky lg:top-16 lg:block lg:h-[calc(100vh-4rem)] lg:overflow-y-auto lg:border-0 lg:border-r lg:pr-4 scroll-thin`}
+        } scroll-thin border-b border-line bg-bg px-2 py-4 lg:sticky lg:top-16 lg:block lg:h-[calc(100vh-4rem)] lg:overflow-y-auto lg:border-0 lg:border-r lg:pr-4`}
       >
         <div className="mb-5 px-3">
           <div className="flex items-center justify-between text-xs text-muted">
             <span className="font-medium uppercase tracking-wider">Progress</span>
-            <span suppressHydrationWarning>
-              {ready ? `${Math.round((done / total) * 100)}%` : "—"}
-            </span>
+            <span>{Math.round(percent)}%</span>
           </div>
           <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-surface-2">
             <div
               className="h-full rounded-full bg-accent transition-[width] duration-500"
-              style={{ width: ready ? `${(done / total) * 100}%` : "0%" }}
+              style={{ width: `${percent}%` }}
             />
           </div>
         </div>
@@ -92,6 +90,7 @@ export function CourseSidebar({
                     <Link
                       ref={active ? activeRef : undefined}
                       href={`/${courseSlug}/${lesson.slug}`}
+                      onClick={() => setOpen(false)}
                       aria-current={active ? "page" : undefined}
                       className={`flex items-center gap-2.5 rounded-lg px-3 py-1.5 text-[13.5px] transition ${
                         active
@@ -100,7 +99,6 @@ export function CourseSidebar({
                       }`}
                     >
                       <span
-                        suppressHydrationWarning
                         className={`grid size-4 shrink-0 place-items-center rounded-full border text-[9px] ${
                           isDone
                             ? "border-success bg-success text-white"

@@ -8,20 +8,20 @@ import type { SearchItem } from "@/lib/courses";
  * Command-palette style lesson search. The whole index is a few KB of JSON
  * generated at build time, so matching happens instantly on the client with no
  * API round-trip — which also keeps the static export self-contained.
+ *
+ * The component is mounted only while the dialog is open, so its state starts
+ * fresh on every launch.
  */
 export function SearchDialog({
   index,
-  open,
   onClose,
 }: {
   index: SearchItem[];
-  open: boolean;
   onClose: () => void;
 }) {
   const router = useRouter();
   const [query, setQuery] = useState("");
   const [active, setActive] = useState(0);
-  const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLUListElement>(null);
 
   const results = useMemo(() => {
@@ -32,8 +32,9 @@ export function SearchDialog({
         let score = 0;
         for (const term of terms) {
           if (!item.haystack.includes(term)) return null;
-          if (item.title.toLowerCase().includes(term)) score += 3;
-          if (item.title.toLowerCase().startsWith(term)) score += 2;
+          const title = item.title.toLowerCase();
+          if (title.includes(term)) score += 3;
+          if (title.startsWith(term)) score += 2;
           score += 1;
         }
         return { item, score };
@@ -43,16 +44,6 @@ export function SearchDialog({
       .slice(0, 12)
       .map((entry) => entry.item);
   }, [index, query]);
-
-  useEffect(() => setActive(0), [query]);
-
-  useEffect(() => {
-    if (open) {
-      setQuery("");
-      // Focus after the dialog paints.
-      requestAnimationFrame(() => inputRef.current?.focus());
-    }
-  }, [open]);
 
   const go = useCallback(
     (href: string) => {
@@ -77,13 +68,12 @@ export function SearchDialog({
     }
   };
 
+  // Keep the highlighted row in view during keyboard navigation.
   useEffect(() => {
     listRef.current
       ?.querySelector<HTMLElement>(`[data-index="${active}"]`)
       ?.scrollIntoView({ block: "nearest" });
   }, [active]);
-
-  if (!open) return null;
 
   return (
     <div
@@ -102,9 +92,13 @@ export function SearchDialog({
         <div className="flex items-center gap-3 border-b border-line px-4">
           <SearchIcon className="size-4 shrink-0 text-muted" />
           <input
-            ref={inputRef}
+            // Focus on open — expected behaviour for a command palette.
+            autoFocus
             value={query}
-            onChange={(event) => setQuery(event.target.value)}
+            onChange={(event) => {
+              setQuery(event.target.value);
+              setActive(0);
+            }}
             onKeyDown={onKeyDown}
             placeholder="Search lessons — try 'decorators' or 'dict'"
             className="w-full bg-transparent py-4 text-sm text-fg outline-none placeholder:text-muted"
@@ -120,15 +114,15 @@ export function SearchDialog({
           </p>
         ) : (
           <ul ref={listRef} className="scroll-thin max-h-[52vh] overflow-y-auto p-2">
-            {results.map((item, index) => (
+            {results.map((item, position) => (
               <li key={item.href}>
                 <button
                   type="button"
-                  data-index={index}
-                  onMouseMove={() => setActive(index)}
+                  data-index={position}
+                  onMouseMove={() => setActive(position)}
                   onClick={() => go(item.href)}
                   className={`flex w-full flex-col gap-0.5 rounded-lg px-3 py-2.5 text-left transition ${
-                    index === active ? "bg-accent-soft" : "hover:bg-surface-2"
+                    position === active ? "bg-accent-soft" : "hover:bg-surface-2"
                   }`}
                 >
                   <span className="flex items-center gap-2 text-sm font-medium text-fg">
@@ -137,7 +131,9 @@ export function SearchDialog({
                       {item.course}
                     </span>
                   </span>
-                  <span className="line-clamp-1 text-xs text-muted">{item.summary}</span>
+                  <span className="line-clamp-1 text-xs text-muted">
+                    {item.summary}
+                  </span>
                 </button>
               </li>
             ))}
@@ -147,7 +143,8 @@ export function SearchDialog({
         <div className="flex items-center gap-4 border-t border-line px-4 py-2 text-[11px] text-muted">
           <span className="flex items-center gap-1">
             <kbd className="rounded border border-line px-1 font-mono">↑</kbd>
-            <kbd className="rounded border border-line px-1 font-mono">↓</kbd> navigate
+            <kbd className="rounded border border-line px-1 font-mono">↓</kbd>{" "}
+            navigate
           </span>
           <span className="flex items-center gap-1">
             <kbd className="rounded border border-line px-1 font-mono">↵</kbd> open

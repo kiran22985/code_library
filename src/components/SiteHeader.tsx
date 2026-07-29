@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import type { SearchItem } from "@/lib/courses";
 import { SearchDialog, SearchIcon } from "./SearchDialog";
 import { ThemeToggle } from "./ThemeToggle";
@@ -13,27 +13,29 @@ const NAV = [
   { href: "/roadmap", label: "Roadmap" },
 ];
 
+function subscribeToScroll(onChange: () => void) {
+  window.addEventListener("scroll", onChange, { passive: true });
+  return () => window.removeEventListener("scroll", onChange);
+}
+
 export function SiteHeader({ index }: { index: SearchItem[] }) {
   const pathname = usePathname();
   const [searchOpen, setSearchOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
-  const [scrolled, setScrolled] = useState(false);
 
-  useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 8);
-    onScroll();
-    window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
-  }, []);
+  const scrolled = useSyncExternalStore(
+    subscribeToScroll,
+    () => window.scrollY > 8,
+    () => false,
+  );
 
-  // ⌘K / Ctrl-K opens search from anywhere.
+  // ⌘K / Ctrl-K (or "/") opens search from anywhere.
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
         event.preventDefault();
         setSearchOpen((open) => !open);
-      }
-      if (event.key === "/" && !isTypingTarget(event.target)) {
+      } else if (event.key === "/" && !isTypingTarget(event.target)) {
         event.preventDefault();
         setSearchOpen(true);
       }
@@ -41,11 +43,6 @@ export function SiteHeader({ index }: { index: SearchItem[] }) {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, []);
-
-  useEffect(() => {
-    setMenuOpen(false);
-    setSearchOpen(false);
-  }, [pathname]);
 
   return (
     <>
@@ -123,6 +120,7 @@ export function SiteHeader({ index }: { index: SearchItem[] }) {
               <Link
                 key={item.href}
                 href={item.href}
+                onClick={() => setMenuOpen(false)}
                 className="block rounded-lg px-3 py-2.5 text-sm text-fg-soft hover:bg-surface-2"
               >
                 {item.label}
@@ -132,22 +130,21 @@ export function SiteHeader({ index }: { index: SearchItem[] }) {
         )}
       </header>
 
-      <SearchDialog
-        index={index}
-        open={searchOpen}
-        onClose={() => setSearchOpen(false)}
-      />
+      {/* Mounted only while open, so its state resets on every launch. */}
+      {searchOpen && (
+        <SearchDialog index={index} onClose={() => setSearchOpen(false)} />
+      )}
     </>
   );
 }
 
 function isTypingTarget(target: EventTarget | null) {
-  const el = target as HTMLElement | null;
-  if (!el) return false;
+  const element = target as HTMLElement | null;
+  if (!element) return false;
   return (
-    el.tagName === "INPUT" ||
-    el.tagName === "TEXTAREA" ||
-    el.isContentEditable === true
+    element.tagName === "INPUT" ||
+    element.tagName === "TEXTAREA" ||
+    element.isContentEditable === true
   );
 }
 

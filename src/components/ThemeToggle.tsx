@@ -1,24 +1,36 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useSyncExternalStore } from "react";
 
 type Theme = "light" | "dark";
 
-/** Applied before hydration by the inline script in `layout.tsx`. */
+/** Also read by the inline script in `layout.tsx`, before hydration. */
 export const THEME_KEY = "code-library:theme";
+const EVENT = "code-library:theme-change";
+
+function subscribe(onChange: () => void) {
+  window.addEventListener(EVENT, onChange);
+  window.addEventListener("storage", onChange);
+  return () => {
+    window.removeEventListener(EVENT, onChange);
+    window.removeEventListener("storage", onChange);
+  };
+}
+
+function currentTheme(): Theme {
+  return document.documentElement.classList.contains("dark") ? "dark" : "light";
+}
 
 export function ThemeToggle({ className = "" }: { className?: string }) {
-  const [theme, setTheme] = useState<Theme>("dark");
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setTheme(document.documentElement.classList.contains("dark") ? "dark" : "light");
-    setMounted(true);
-  }, []);
+  // The <html> class is the source of truth — it is set before first paint.
+  const theme = useSyncExternalStore<Theme>(
+    subscribe,
+    currentTheme,
+    () => "dark",
+  );
 
   const toggle = () => {
     const next: Theme = theme === "dark" ? "light" : "dark";
-    setTheme(next);
     document.documentElement.classList.toggle("dark", next === "dark");
     document.documentElement.style.colorScheme = next;
     try {
@@ -26,6 +38,7 @@ export function ThemeToggle({ className = "" }: { className?: string }) {
     } catch {
       // Ignore — the theme simply won't persist.
     }
+    window.dispatchEvent(new Event(EVENT));
   };
 
   return (
@@ -35,8 +48,7 @@ export function ThemeToggle({ className = "" }: { className?: string }) {
       aria-label={`Switch to ${theme === "dark" ? "light" : "dark"} theme`}
       className={`grid size-9 place-items-center rounded-lg border border-line bg-surface text-muted transition hover:border-line-strong hover:text-fg ${className}`}
     >
-      {/* Render a stable icon until mounted to avoid a hydration mismatch. */}
-      {mounted && theme === "light" ? <SunIcon /> : <MoonIcon />}
+      {theme === "light" ? <SunIcon /> : <MoonIcon />}
     </button>
   );
 }

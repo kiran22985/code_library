@@ -18,8 +18,8 @@ export function LessonFooter({
   prev?: { slug: string; title: string };
   next?: { slug: string; title: string };
 }) {
-  const { isDone, toggle, ready } = useProgress(courseSlug);
-  const done = ready && isDone(slug);
+  const { isDone, toggle } = useProgress(courseSlug);
+  const done = isDone(slug);
 
   return (
     <div className="mt-14 border-t border-line pt-8">
@@ -27,7 +27,6 @@ export function LessonFooter({
         <button
           type="button"
           onClick={() => toggle(slug)}
-          suppressHydrationWarning
           className={`flex items-center gap-2 rounded-lg px-4 py-2.5 text-sm font-medium transition ${
             done
               ? "border border-success/40 bg-success/10 text-success"

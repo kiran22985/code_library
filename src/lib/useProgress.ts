@@ -1,27 +1,45 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useSyncExternalStore } from "react";
 
 /**
  * Per-course lesson progress, persisted in localStorage.
  *
  * The site is statically exported, so there is no account system — progress is
- * device-local. A custom event keeps every mounted consumer (sidebar, course
- * page, pager) in sync without a global store.
+ * device-local. localStorage is an external store, so it is read through
+ * `useSyncExternalStore`: that keeps server and hydration renders consistent
+ * and keeps every mounted consumer (sidebar, course page, pager) in sync
+ * without a global state library.
  */
 
 const EVENT = "code-library:progress";
+const EMPTY: string[] = [];
 const key = (course: string) => `code-library:progress:${course}`;
 
-function read(course: string): string[] {
-  if (typeof window === "undefined") return [];
+/** Snapshots must be referentially stable, so parsed values are memoised. */
+const cache = new Map<string, { raw: string | null; value: string[] }>();
+
+function readSnapshot(course: string): string[] {
+  let raw: string | null = null;
   try {
-    const raw = window.localStorage.getItem(key(course));
-    const parsed: unknown = raw ? JSON.parse(raw) : [];
-    return Array.isArray(parsed) ? (parsed as string[]) : [];
+    raw = window.localStorage.getItem(key(course));
   } catch {
-    return [];
+    return EMPTY;
   }
+
+  const cached = cache.get(course);
+  if (cached && cached.raw === raw) return cached.value;
+
+  let value = EMPTY;
+  try {
+    const parsed: unknown = raw ? JSON.parse(raw) : [];
+    if (Array.isArray(parsed)) value = parsed as string[];
+  } catch {
+    value = EMPTY;
+  }
+
+  cache.set(course, { raw, value });
+  return value;
 }
 
 function write(course: string, slugs: string[]) {
@@ -33,41 +51,38 @@ function write(course: string, slugs: string[]) {
   window.dispatchEvent(new CustomEvent(EVENT, { detail: course }));
 }
 
+function subscribe(onChange: () => void) {
+  window.addEventListener(EVENT, onChange);
+  window.addEventListener("storage", onChange);
+  return () => {
+    window.removeEventListener(EVENT, onChange);
+    window.removeEventListener("storage", onChange);
+  };
+}
+
 export function useProgress(course: string) {
-  const [completed, setCompleted] = useState<string[]>([]);
-  /** False until the first client read, so SSR and first paint agree. */
-  const [ready, setReady] = useState(false);
-
-  useEffect(() => {
-    const sync = () => setCompleted(read(course));
-    sync();
-    setReady(true);
-
-    const onCustom = (event: Event) => {
-      if ((event as CustomEvent<string>).detail === course) sync();
-    };
-    window.addEventListener(EVENT, onCustom);
-    window.addEventListener("storage", sync);
-    return () => {
-      window.removeEventListener(EVENT, onCustom);
-      window.removeEventListener("storage", sync);
-    };
-  }, [course]);
+  const completed = useSyncExternalStore(
+    subscribe,
+    () => readSnapshot(course),
+    () => EMPTY,
+  );
 
   const toggle = useCallback(
     (slug: string) => {
-      const current = read(course);
-      const next = current.includes(slug)
-        ? current.filter((entry) => entry !== slug)
-        : [...current, slug];
-      write(course, next);
+      const current = readSnapshot(course);
+      write(
+        course,
+        current.includes(slug)
+          ? current.filter((entry) => entry !== slug)
+          : [...current, slug],
+      );
     },
     [course],
   );
 
   const markDone = useCallback(
     (slug: string) => {
-      const current = read(course);
+      const current = readSnapshot(course);
       if (!current.includes(slug)) write(course, [...current, slug]);
     },
     [course],
@@ -77,7 +92,6 @@ export function useProgress(course: string) {
 
   return {
     completed,
-    ready,
     isDone: (slug: string) => completed.includes(slug),
     toggle,
     markDone,
