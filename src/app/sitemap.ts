@@ -7,7 +7,7 @@ const BASE = process.env.NEXT_PUBLIC_SITE_URL ?? "https://example.com";
 export const dynamic = "force-static";
 
 export default function sitemap(): MetadataRoute.Sitemap {
-  const staticRoutes = ["", "/courses", "/roadmap"].map((path) => ({
+  const staticRoutes = ["", "/courses", "/roadmap", "/privacy"].map((path) => ({
     url: `${BASE}${path}`,
     changeFrequency: "weekly" as const,
     priority: path === "" ? 1 : 0.7,

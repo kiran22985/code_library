@@ -1,10 +1,12 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { AdUnit } from "@/components/AdSense";
 import { CourseSidebar } from "@/components/CourseSidebar";
 import { LessonBlocks } from "@/components/LessonBlocks";
 import { LessonFooter } from "@/components/LessonFooter";
 import { TableOfContents } from "@/components/TableOfContents";
+import { AD_SLOTS } from "@/lib/ads";
 import { availableCourses, getCourse, getLessonRef, getLessonRefs } from "@/lib/courses";
 import { plainText, slugify } from "@/lib/inline";
 
@@ -110,9 +112,13 @@ export default async function LessonPage({ params }: Params) {
           </details>
         )}
 
+        <AdUnit slot={AD_SLOTS.lessonTop} format="horizontal" />
+
         <div className="mt-2">
           <LessonBlocks blocks={lesson.blocks} />
         </div>
+
+        <AdUnit slot={AD_SLOTS.lessonBottom} format="horizontal" />
 
         <LessonFooter
           courseSlug={course.slug}

@@ -20,6 +20,7 @@ export function SiteFooter() {
           <FooterLink href="/python">Python tutorial</FooterLink>
           <FooterLink href="/python/intro">Start from zero</FooterLink>
           <FooterLink href="/roadmap">Roadmap</FooterLink>
+          <FooterLink href="/privacy">Privacy policy</FooterLink>
         </FooterColumn>
 
         <FooterColumn title="Courses">

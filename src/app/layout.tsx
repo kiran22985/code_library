@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { AdSenseScript } from "@/components/AdSense";
 import { AuthProvider } from "@/components/AuthProvider";
 import { SiteFooter } from "@/components/SiteFooter";
 import { SiteHeader } from "@/components/SiteHeader";
@@ -53,6 +54,7 @@ export default function RootLayout({
           <main className="flex-1">{children}</main>
           <SiteFooter />
         </AuthProvider>
+        <AdSenseScript />
       </body>
     </html>
   );
