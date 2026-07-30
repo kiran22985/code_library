@@ -10,8 +10,28 @@
  * own ads).
  */
 
-/** Your publisher ID, e.g. "ca-pub-1234567890123456". */
-export const ADSENSE_CLIENT = process.env.NEXT_PUBLIC_ADSENSE_CLIENT ?? "";
+/**
+ * Normalises the publisher ID to the `ca-pub-…` form the AdSense script and
+ * `data-ad-client` require.
+ *
+ * AdSense shows the ID in three different places in three different shapes —
+ * `ca-pub-123…` in the code snippet, `pub-123…` in the ads.txt line, and bare
+ * digits in some reports — so all three are accepted here. Getting this wrong
+ * loads the library with an invalid client and silently serves no ads.
+ */
+function normaliseClientId(value: string | undefined): string {
+  const raw = value?.trim() ?? "";
+  if (!raw) return "";
+  if (raw.startsWith("ca-pub-")) return raw;
+  if (raw.startsWith("pub-")) return `ca-${raw}`;
+  if (/^\d+$/.test(raw)) return `ca-pub-${raw}`;
+  return raw;
+}
+
+/** Your publisher ID, always as "ca-pub-1234567890123456". */
+export const ADSENSE_CLIENT = normaliseClientId(
+  process.env.NEXT_PUBLIC_ADSENSE_CLIENT,
+);
 
 /**
  * Ad unit slot IDs, created in AdSense -> Ads -> By ad unit. Each is optional:
