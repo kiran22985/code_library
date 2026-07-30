@@ -10,8 +10,37 @@ import { Pool, type QueryResultRow } from "pg";
  */
 const globalForDb = globalThis as unknown as { codeLibraryPool?: Pool };
 
-function isLocal(connectionString: string) {
-  return /@(localhost|127\.0\.0\.1|\[::1\])[:/]/.test(connectionString);
+function hostOf(connectionString: string): string {
+  try {
+    return new URL(connectionString).hostname;
+  } catch {
+    // Fall back to a regex if the password contains characters that break URL().
+    return /@([^:/?]+)/.exec(connectionString)?.[1] ?? "";
+  }
+}
+
+/**
+ * Whether to use TLS, which differs by host:
+ *
+ * - Local Postgres: no TLS.
+ * - Render's *internal* hostname (`dpg-…-a`, no dots): plain TCP inside their
+ *   private network. Forcing TLS here fails with "The server does not support
+ *   SSL connections".
+ * - Anything else — Render external, Neon, Supabase: TLS required, with a
+ *   certificate chain the Node trust store does not recognise.
+ *
+ * Set `DATABASE_SSL=true|false` to override the detection.
+ */
+function sslSetting(connectionString: string) {
+  const override = process.env.DATABASE_SSL;
+  if (override === "false") return undefined;
+  if (override === "true") return { rejectUnauthorized: false };
+
+  const host = hostOf(connectionString);
+  const isLocal = ["localhost", "127.0.0.1", "::1", ""].includes(host);
+  const isPrivateHostname = !host.includes(".");
+
+  return isLocal || isPrivateHostname ? undefined : { rejectUnauthorized: false };
 }
 
 export function getPool(): Pool {
@@ -24,9 +53,7 @@ export function getPool(): Pool {
 
   globalForDb.codeLibraryPool ??= new Pool({
     connectionString,
-    // Managed Postgres (Render, Neon, Supabase) requires TLS and presents a
-    // certificate the Node trust store does not know; a local database does not.
-    ssl: isLocal(connectionString) ? undefined : { rejectUnauthorized: false },
+    ssl: sslSetting(connectionString),
     max: 5,
     idleTimeoutMillis: 30_000,
     connectionTimeoutMillis: 10_000,

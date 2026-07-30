@@ -50,12 +50,28 @@ async function main() {
     process.exit(1);
   }
 
-  const isLocal = /@(localhost|127\.0\.0\.1|\[::1\])[:/]/.test(
-    process.env.DATABASE_URL,
-  );
+  // Must match the detection in src/lib/db.ts: no TLS for a local database or
+  // for Render's internal hostname (`dpg-…-a`, which has no dots), TLS for any
+  // public managed host. Override with DATABASE_SSL=true|false.
+  let host = "";
+  try {
+    host = new URL(process.env.DATABASE_URL).hostname;
+  } catch {
+    host = /@([^:/?]+)/.exec(process.env.DATABASE_URL)?.[1] ?? "";
+  }
+
+  const override = process.env.DATABASE_SSL;
+  const useSsl =
+    override === "true"
+      ? true
+      : override === "false"
+        ? false
+        : host.includes(".") &&
+          !["localhost", "127.0.0.1", "::1"].includes(host);
+
   const pool = new Pool({
     connectionString: process.env.DATABASE_URL,
-    ssl: isLocal ? undefined : { rejectUnauthorized: false },
+    ssl: useSsl ? { rejectUnauthorized: false } : undefined,
   });
 
   try {
