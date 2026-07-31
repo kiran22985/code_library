@@ -61,7 +61,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const data: { user?: User | null } = await response.json();
         if (!active) return;
         setUser(data.user ?? null);
-        await setProgressUser(Boolean(data.user));
+        await setProgressUser(data.user ?? null);
       } catch {
         if (active) setUser(null);
       } finally {
@@ -92,7 +92,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       setUser(data.user);
-      await setProgressUser(true);
+      await setProgressUser(data.user);
     },
     [],
   );
@@ -106,7 +106,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       logout: async () => {
         await fetch("/api/auth/logout/", { method: "POST" }).catch(() => {});
         setUser(null);
-        await setProgressUser(false);
+        await setProgressUser(null);
       },
     }),
     [user, loading, authenticate],

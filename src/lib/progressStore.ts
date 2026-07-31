@@ -3,22 +3,29 @@
 /**
  * Lesson progress, for signed-out and signed-in visitors alike.
  *
- * - **Signed out** — progress lives in localStorage, exactly as before.
- * - **Signed in** — the server is the source of truth, and localStorage keeps
- *   working as an offline cache so the UI never blocks on a request.
+ * - **Signed out** — progress lives in localStorage under the guest namespace.
+ * - **Signed in** — the account is the source of truth. localStorage still
+ *   holds a copy, but namespaced per user id, so two people using the same
+ *   browser never see each other's progress and signing out restores the
+ *   guest's own.
  *
- * Updates are optimistic: the store changes immediately and the API call
- * follows. If that call fails the local value stays, so a flaky connection
- * cannot make a completed lesson appear to un-complete itself.
+ * Guest progress is never merged into an account automatically: a brand-new
+ * account starts empty, which is what people expect. `importGuestProgress()`
+ * exists for when the visitor explicitly asks to carry it over.
+ *
+ * Updates are optimistic — the store changes immediately and the API call
+ * follows, so a slow connection never makes a completed lesson flicker back.
  */
 
 type Snapshot = Record<string, string[]>;
 
-const LS_PREFIX = "code-library:progress:";
+const PREFIX = "code-library:progress:";
+/** Distinguishes `…:u12:python` (an account) from `…:python` (a guest). */
+const USER_SCOPED = /^code-library:progress:u\d+:/;
 const EMPTY: string[] = [];
 
 let state: Snapshot = {};
-let signedIn = false;
+let userId: number | null = null;
 let initialised = false;
 const listeners = new Set<() => void>();
 
@@ -26,14 +33,26 @@ function emit() {
   for (const listener of listeners) listener();
 }
 
-function readLocal(): Snapshot {
+function storageKey(course: string, forUser = userId): string {
+  return forUser === null ? `${PREFIX}${course}` : `${PREFIX}u${forUser}:${course}`;
+}
+
+/** Reads every course for one scope: a specific user, or the guest. */
+function readScope(forUser: number | null): Snapshot {
   const loaded: Snapshot = {};
+  const scopePrefix = forUser === null ? PREFIX : `${PREFIX}u${forUser}:`;
+
   try {
     for (let i = 0; i < window.localStorage.length; i += 1) {
       const key = window.localStorage.key(i);
-      if (!key?.startsWith(LS_PREFIX)) continue;
+      if (!key?.startsWith(scopePrefix)) continue;
+      // The guest prefix is also a prefix of every user key, so filter those out.
+      if (forUser === null && USER_SCOPED.test(key)) continue;
+
       const parsed: unknown = JSON.parse(window.localStorage.getItem(key) ?? "[]");
-      if (Array.isArray(parsed)) loaded[key.slice(LS_PREFIX.length)] = parsed as string[];
+      if (Array.isArray(parsed)) {
+        loaded[key.slice(scopePrefix.length)] = parsed as string[];
+      }
     }
   } catch {
     // Storage unavailable (private mode, quota) — progress is a nicety.
@@ -41,10 +60,10 @@ function readLocal(): Snapshot {
   return loaded;
 }
 
-function writeLocal(course: string) {
+function writeScope(course: string) {
   try {
     window.localStorage.setItem(
-      `${LS_PREFIX}${course}`,
+      storageKey(course),
       JSON.stringify(state[course] ?? []),
     );
   } catch {
@@ -57,41 +76,89 @@ function setCourse(course: string, lessons: string[]) {
   emit();
 }
 
-/** Loads localStorage once, on the client. */
+/** Loads the guest's stored progress once, on the client. */
 export function initProgress() {
   if (initialised || typeof window === "undefined") return;
   initialised = true;
-  state = readLocal();
+  state = readScope(null);
   emit();
 }
 
 /**
- * Called when the signed-in user changes. On sign-in the local progress is
- * pushed up and merged; on sign-out the store falls back to localStorage.
+ * Called when the signed-in user changes.
+ *
+ * On sign-in the cached copy for that account renders immediately, then the
+ * server's authoritative copy replaces it. On sign-out the guest's own
+ * progress comes back.
  */
-export async function setProgressUser(userPresent: boolean) {
-  signedIn = userPresent;
-  if (!userPresent) {
-    state = readLocal();
-    emit();
-    return;
-  }
+export async function setProgressUser(user: { id: number } | null) {
+  userId = user?.id ?? null;
+
+  // Show something instantly rather than blanking the UI during the request.
+  state = readScope(userId);
+  emit();
+
+  if (userId === null) return;
 
   try {
-    const response = await fetch("/api/progress/merge/", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ progress: state }),
+    const response = await fetch("/api/progress/", {
+      headers: { Accept: "application/json" },
     });
     if (!response.ok) return;
 
     const data: { progress?: Snapshot } = await response.json();
     state = data.progress ?? {};
     emit();
-    for (const course of Object.keys(state)) writeLocal(course);
+    for (const course of Object.keys(state)) writeScope(course);
   } catch {
-    // Offline: keep whatever is cached locally.
+    // Offline: keep the cached copy.
   }
+}
+
+/**
+ * Copies progress made while signed out into the current account. Only ever
+ * called from an explicit user action, never automatically.
+ */
+export async function importGuestProgress(): Promise<boolean> {
+  if (userId === null) return false;
+
+  const guest = readScope(null);
+  if (Object.keys(guest).length === 0) return false;
+
+  try {
+    const response = await fetch("/api/progress/merge/", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ progress: guest }),
+    });
+    if (!response.ok) return false;
+
+    const data: { progress?: Snapshot } = await response.json();
+    state = data.progress ?? {};
+    emit();
+    for (const course of Object.keys(state)) writeScope(course);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** Lessons recorded while signed out, used to offer the import. */
+export function getGuestSnapshot(): Snapshot {
+  if (typeof window === "undefined") return {};
+  return readScope(null);
+}
+
+/**
+ * How many lessons are stored against the guest. A primitive, so it is a stable
+ * `useSyncExternalStore` snapshot.
+ */
+export function getGuestCount(): number {
+  if (typeof window === "undefined") return 0;
+  return Object.values(readScope(null)).reduce(
+    (sum, lessons) => sum + lessons.length,
+    0,
+  );
 }
 
 export function toggleLesson(course: string, lesson: string) {
@@ -102,9 +169,9 @@ export function toggleLesson(course: string, lesson: string) {
     course,
     done ? [...current, lesson] : current.filter((slug) => slug !== lesson),
   );
-  writeLocal(course);
+  writeScope(course);
 
-  if (!signedIn) return;
+  if (userId === null) return;
   void fetch("/api/progress/", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -116,9 +183,9 @@ export function toggleLesson(course: string, lesson: string) {
 
 export function resetCourse(course: string) {
   setCourse(course, []);
-  writeLocal(course);
+  writeScope(course);
 
-  if (!signedIn) return;
+  if (userId === null) return;
   void fetch(`/api/progress/?course=${encodeURIComponent(course)}`, {
     method: "DELETE",
   }).catch(() => {});

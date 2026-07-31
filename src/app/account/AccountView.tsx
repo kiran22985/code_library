@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useSyncExternalStore } from "react";
 import { useAuth } from "@/components/AuthProvider";
+import { GuestProgressImport } from "@/components/GuestProgressImport";
 import { getAllSnapshot, subscribe } from "@/lib/progressStore";
 
 const EMPTY: Record<string, string[]> = {};
@@ -68,6 +69,8 @@ export function AccountView({
           Sign out
         </button>
       </header>
+
+      <GuestProgressImport />
 
       <section className="mt-10">
         <h2 className="text-sm font-semibold uppercase tracking-wider text-muted">
