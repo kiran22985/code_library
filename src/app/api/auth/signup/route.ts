@@ -7,7 +7,14 @@ import {
   createSession,
   pruneExpiredSessions,
 } from "@/lib/auth/session";
-import { validatePassword, validateUsername } from "@/lib/auth/validate";
+import {
+  emailKey,
+  validateEmail,
+  validateFullName,
+  validatePassword,
+  validatePasswordConfirmation,
+  validatePhone,
+} from "@/lib/auth/validate";
 
 /** Postgres unique-violation error code. */
 const UNIQUE_VIOLATION = "23505";
@@ -21,28 +28,47 @@ export async function POST(request: Request) {
     );
   }
 
-  let body: { username?: unknown; password?: unknown };
+  let body: {
+    fullName?: unknown;
+    phone?: unknown;
+    email?: unknown;
+    password?: unknown;
+    confirmPassword?: unknown;
+  };
   try {
     body = await request.json();
   } catch {
     return NextResponse.json({ error: "Invalid request body." }, { status: 400 });
   }
 
-  const usernameError = validateUsername(body.username);
-  if (usernameError) return NextResponse.json({ error: usernameError }, { status: 400 });
+  // Checked in the order the fields appear on the form, so the message the user
+  // sees points at the first field that needs attention.
+  const problem =
+    validateFullName(body.fullName) ??
+    validatePhone(body.phone) ??
+    validateEmail(body.email) ??
+    validatePassword(body.password) ??
+    validatePasswordConfirmation(body.password, body.confirmPassword);
 
-  const passwordError = validatePassword(body.password);
-  if (passwordError) return NextResponse.json({ error: passwordError }, { status: 400 });
+  if (problem) return NextResponse.json({ error: problem }, { status: 400 });
 
-  const username = (body.username as string).trim();
+  const fullName = (body.fullName as string).trim();
+  const phone = (body.phone as string).trim();
+  const email = (body.email as string).trim();
   const passwordHash = await hashPassword(body.password as string);
 
   try {
-    const user = await queryOne<{ id: number; username: string; created_at: Date }>(
-      `INSERT INTO users (username, username_key, password_hash)
-       VALUES ($1, $2, $3)
-       RETURNING id, username, created_at`,
-      [username, username.toLowerCase(), passwordHash],
+    const user = await queryOne<{
+      id: number;
+      full_name: string;
+      email: string;
+      phone: string;
+      created_at: Date;
+    }>(
+      `INSERT INTO users (full_name, phone, email, email_key, password_hash)
+       VALUES ($1, $2, $3, $4, $5)
+       RETURNING id, full_name, email, phone, created_at`,
+      [fullName, phone, email, emailKey(email), passwordHash],
     );
 
     if (!user) throw new Error("Insert returned no row");
@@ -53,7 +79,9 @@ export async function POST(request: Request) {
     const response = NextResponse.json({
       user: {
         id: user.id,
-        username: user.username,
+        fullName: user.full_name,
+        email: user.email,
+        phone: user.phone,
         createdAt: user.created_at.toISOString(),
       },
     });
@@ -62,7 +90,7 @@ export async function POST(request: Request) {
   } catch (error) {
     if ((error as { code?: string }).code === UNIQUE_VIOLATION) {
       return NextResponse.json(
-        { error: "That username is already taken." },
+        { error: "An account with that email already exists." },
         { status: 409 },
       );
     }
@@ -74,14 +102,14 @@ export async function POST(request: Request) {
   }
 }
 
-/** Used by the signup form to tell the user a name is taken before they submit. */
+/** Lets the signup form warn about a taken email before the user submits. */
 export async function GET(request: Request) {
-  const username = new URL(request.url).searchParams.get("username") ?? "";
-  if (validateUsername(username)) {
+  const email = new URL(request.url).searchParams.get("email") ?? "";
+  if (validateEmail(email)) {
     return NextResponse.json({ available: false });
   }
-  const existing = await query("SELECT 1 FROM users WHERE username_key = $1", [
-    username.trim().toLowerCase(),
+  const existing = await query("SELECT 1 FROM users WHERE email_key = $1", [
+    emailKey(email),
   ]);
   return NextResponse.json({ available: existing.length === 0 });
 }

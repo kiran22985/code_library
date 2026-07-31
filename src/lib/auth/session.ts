@@ -20,7 +20,9 @@ const SESSION_MAX_AGE = SESSION_DAYS * 24 * 60 * 60;
 
 export interface SessionUser {
   id: number;
-  username: string;
+  fullName: string;
+  email: string;
+  phone: string;
   createdAt: string;
 }
 
@@ -67,10 +69,12 @@ export async function getCurrentUser(): Promise<SessionUser | null> {
 
   const row = await queryOne<{
     id: number;
-    username: string;
+    full_name: string | null;
+    email: string | null;
+    phone: string | null;
     created_at: Date;
   }>(
-    `SELECT u.id, u.username, u.created_at
+    `SELECT u.id, u.full_name, u.email, u.phone, u.created_at
        FROM sessions s
        JOIN users u ON u.id = s.user_id
       WHERE s.token_hash = $1
@@ -81,7 +85,9 @@ export async function getCurrentUser(): Promise<SessionUser | null> {
   if (!row) return null;
   return {
     id: row.id,
-    username: row.username,
+    fullName: row.full_name ?? "",
+    email: row.email ?? "",
+    phone: row.phone ?? "",
     createdAt: row.created_at.toISOString(),
   };
 }

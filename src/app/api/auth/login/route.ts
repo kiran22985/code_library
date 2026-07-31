@@ -3,9 +3,10 @@ import { queryOne } from "@/lib/db";
 import { burnTime, verifyPassword } from "@/lib/auth/password";
 import { checkRateLimit, clientKey, resetRateLimit } from "@/lib/auth/rateLimit";
 import { attachSessionCookie, createSession } from "@/lib/auth/session";
+import { emailKey } from "@/lib/auth/validate";
 
-/** Deliberately vague: never reveal whether the username or password was wrong. */
-const GENERIC_ERROR = "Incorrect username or password.";
+/** Deliberately vague: never reveal whether the email or the password was wrong. */
+const GENERIC_ERROR = "Incorrect email or password.";
 
 export async function POST(request: Request) {
   const key = clientKey(request, "login");
@@ -17,35 +18,37 @@ export async function POST(request: Request) {
     );
   }
 
-  let body: { username?: unknown; password?: unknown };
+  let body: { email?: unknown; password?: unknown };
   try {
     body = await request.json();
   } catch {
     return NextResponse.json({ error: "Invalid request body." }, { status: 400 });
   }
 
-  const username = typeof body.username === "string" ? body.username.trim() : "";
+  const email = typeof body.email === "string" ? body.email.trim() : "";
   const password = typeof body.password === "string" ? body.password : "";
 
-  if (!username || !password) {
+  if (!email || !password) {
     return NextResponse.json({ error: GENERIC_ERROR }, { status: 401 });
   }
 
   const user = await queryOne<{
     id: number;
-    username: string;
+    full_name: string | null;
+    email: string | null;
+    phone: string | null;
     password_hash: string;
     created_at: Date;
   }>(
-    `SELECT id, username, password_hash, created_at
+    `SELECT id, full_name, email, phone, password_hash, created_at
        FROM users
-      WHERE username_key = $1`,
-    [username.toLowerCase()],
+      WHERE email_key = $1`,
+    [emailKey(email)],
   );
 
   if (!user) {
     // Spend the same time as a real verification so response timing does not
-    // reveal which usernames exist.
+    // reveal which addresses have accounts.
     await burnTime(password);
     return NextResponse.json({ error: GENERIC_ERROR }, { status: 401 });
   }
@@ -61,7 +64,9 @@ export async function POST(request: Request) {
   const response = NextResponse.json({
     user: {
       id: user.id,
-      username: user.username,
+      fullName: user.full_name ?? "",
+      email: user.email ?? "",
+      phone: user.phone ?? "",
       createdAt: user.created_at.toISOString(),
     },
   });

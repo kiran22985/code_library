@@ -34,6 +34,7 @@ export function AccountView({
     );
   }
 
+  const displayName = user.fullName || user.email || "Your account";
   const joined = new Date(user.createdAt).toLocaleDateString(undefined, {
     day: "numeric",
     month: "long",
@@ -48,11 +49,11 @@ export function AccountView({
     <div className="mx-auto w-full max-w-3xl px-4 py-14 sm:px-6">
       <header className="flex flex-wrap items-center gap-4">
         <span className="grid size-14 place-items-center rounded-2xl bg-accent text-xl font-semibold text-on-accent">
-          {user.username.charAt(0).toUpperCase()}
+          {displayName.charAt(0).toUpperCase()}
         </span>
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-fg">
-            {user.username}
+        <div className="min-w-0">
+          <h1 className="truncate text-2xl font-semibold tracking-tight text-fg">
+            {displayName}
           </h1>
           <p className="text-sm text-muted">
             Member since {joined} · {totalDone} lesson
@@ -67,6 +68,18 @@ export function AccountView({
           Sign out
         </button>
       </header>
+
+      <section className="mt-10">
+        <h2 className="text-sm font-semibold uppercase tracking-wider text-muted">
+          Your details
+        </h2>
+        <dl className="mt-4 grid gap-px overflow-hidden rounded-2xl border border-line bg-line sm:grid-cols-2">
+          <Detail label="Full name" value={user.fullName} />
+          <Detail label="Email" value={user.email} />
+          <Detail label="Phone" value={user.phone} />
+          <Detail label="Joined" value={joined} />
+        </dl>
+      </section>
 
       <section className="mt-10">
         <h2 className="text-sm font-semibold uppercase tracking-wider text-muted">
@@ -107,11 +120,24 @@ export function AccountView({
       <section className="mt-10 rounded-2xl border border-line bg-bg-soft p-5">
         <h2 className="font-semibold text-fg">About your data</h2>
         <p className="mt-2 text-sm leading-relaxed text-muted">
-          Your account stores a username, a hashed password and the lessons you
-          have completed — nothing else. Passwords are hashed with scrypt and are
-          never stored or logged in readable form.
+          Your account stores your name, phone number, email, a hashed password
+          and the lessons you have completed — nothing else. Passwords are hashed
+          with scrypt and are never stored or logged in readable form. See the{" "}
+          <Link href="/privacy" className="text-accent underline underline-offset-2">
+            privacy policy
+          </Link>{" "}
+          for how to have it deleted.
         </p>
       </section>
+    </div>
+  );
+}
+
+function Detail({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="bg-surface px-5 py-4">
+      <dt className="text-xs uppercase tracking-wider text-muted">{label}</dt>
+      <dd className="mt-1 truncate text-sm text-fg">{value || "—"}</dd>
     </div>
   );
 }

@@ -32,9 +32,10 @@ export default function PrivacyPage() {
           <p>
             CodeLibrary is a free tutorial site. You can read every lesson
             without an account and without giving us anything. If you choose to
-            create an account, we store a username, a hashed password and the
-            lessons you have marked complete — nothing else. We show ads from
-            Google, which use cookies.
+            create an account, we store your name, phone number, email address,
+            a hashed password and the lessons you have marked complete — nothing
+            else. We never sell that data, and we do not send marketing email.
+            We show ads from Google, which use cookies.
           </p>
         </Section>
 
@@ -49,9 +50,17 @@ export default function PrivacyPage() {
           <h3 className="mt-5 font-medium text-fg">If you create an account</h3>
           <ul className="mt-2 list-disc space-y-1.5 pl-5">
             <li>
-              <strong className="text-fg">Username</strong> — chosen by you. It
-              does not have to identify you, and we never ask for your real
-              name.
+              <strong className="text-fg">Full name</strong> — used only to
+              address you in the interface.
+            </li>
+            <li>
+              <strong className="text-fg">Email address</strong> — your sign-in
+              identifier, and how we would contact you about your account. We do
+              not send newsletters or marketing, and we do not share it.
+            </li>
+            <li>
+              <strong className="text-fg">Phone number</strong> — collected at
+              sign-up. We do not call or text you.
             </li>
             <li>
               <strong className="text-fg">Password</strong> — stored only as a
@@ -68,8 +77,8 @@ export default function PrivacyPage() {
             </li>
           </ul>
           <p className="mt-3">
-            We do not ask for an email address, and we do not collect names,
-            phone numbers, addresses or payment details.
+            We do not collect postal addresses or payment details, and there is
+            no payment on this site.
           </p>
         </Section>
 

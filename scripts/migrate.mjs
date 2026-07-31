@@ -11,12 +11,31 @@ const { Pool } = pg;
 const SCHEMA = `
 CREATE TABLE IF NOT EXISTS users (
   id            SERIAL PRIMARY KEY,
-  username      TEXT        NOT NULL,
-  -- Lower-cased copy so "Ada" and "ada" cannot both be registered.
-  username_key  TEXT        NOT NULL UNIQUE,
+  full_name     TEXT,
+  phone         TEXT,
+  email         TEXT,
+  -- Lower-cased copy so "Ada@x.com" and "ada@x.com" are the same account.
+  email_key     TEXT,
+  -- Legacy from the username-based sign-up; kept nullable so existing rows
+  -- survive, but no longer written to.
+  username      TEXT,
+  username_key  TEXT UNIQUE,
   password_hash TEXT        NOT NULL,
   created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+-- Upgrade path for databases created before accounts moved to email.
+-- Every statement is idempotent, so this runs safely on every deploy.
+ALTER TABLE users ADD COLUMN IF NOT EXISTS full_name TEXT;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS phone     TEXT;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS email     TEXT;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS email_key TEXT;
+ALTER TABLE users ALTER COLUMN username     DROP NOT NULL;
+ALTER TABLE users ALTER COLUMN username_key DROP NOT NULL;
+
+-- Unique on the lower-cased email. Postgres allows many NULLs in a unique
+-- index, so legacy username-only rows do not collide with each other.
+CREATE UNIQUE INDEX IF NOT EXISTS users_email_key_idx ON users (email_key);
 
 -- Sessions are stored server-side so they can be revoked. The cookie holds a
 -- random token; only its SHA-256 hash is stored here, so a database leak does

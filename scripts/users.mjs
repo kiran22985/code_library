@@ -41,7 +41,9 @@ async function main() {
   try {
     const { rows } = await pool.query(`
       SELECT u.id,
-             u.username,
+             coalesce(u.full_name, u.username, '—') AS name,
+             coalesce(u.email, '—')                 AS email,
+             coalesce(u.phone, '—')                 AS phone,
              to_char(u.created_at, 'YYYY-MM-DD HH24:MI') AS joined,
              count(p.lesson_slug)                        AS lessons,
              count(DISTINCT s.token_hash)                AS sessions,
@@ -49,7 +51,7 @@ async function main() {
         FROM users u
         LEFT JOIN progress p ON p.user_id = u.id
         LEFT JOIN sessions s ON s.user_id = u.id AND s.expires_at > now()
-       GROUP BY u.id, u.username, u.created_at
+       GROUP BY u.id, u.full_name, u.username, u.email, u.phone, u.created_at
        ORDER BY u.created_at DESC
     `);
 
@@ -60,17 +62,18 @@ async function main() {
 
     const pad = (value, width) => String(value ?? "—").padEnd(width);
     console.log(
-      `\n${pad("ID", 5)}${pad("USERNAME", 22)}${pad("JOINED", 18)}${pad("LESSONS", 9)}${pad("ACTIVE SESSIONS", 17)}LAST ACTIVE`,
+      `\n${pad("ID", 5)}${pad("NAME", 22)}${pad("EMAIL", 28)}${pad("PHONE", 16)}${pad("JOINED", 18)}${pad("LESSONS", 9)}SESSIONS`,
     );
-    console.log("-".repeat(85));
+    console.log("-".repeat(108));
     for (const row of rows) {
       console.log(
         pad(row.id, 5) +
-          pad(row.username, 22) +
+          pad(row.name, 22) +
+          pad(row.email, 28) +
+          pad(row.phone, 16) +
           pad(row.joined, 18) +
           pad(row.lessons, 9) +
-          pad(row.sessions, 17) +
-          (row.last_active ?? "—"),
+          row.sessions,
       );
     }
 

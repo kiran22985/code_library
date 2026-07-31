@@ -52,6 +52,9 @@ export function UserMenu() {
     );
   }
 
+  // Older accounts predate the profile fields, so fall back to the email.
+  const displayName = user.fullName || user.email || "Account";
+
   return (
     <div ref={containerRef} className="relative">
       <button
@@ -60,9 +63,9 @@ export function UserMenu() {
         aria-haspopup="menu"
         aria-expanded={open}
         className="grid size-9 place-items-center rounded-lg bg-accent text-sm font-semibold text-on-accent transition hover:bg-accent-hover"
-        title={user.username}
+        title={displayName}
       >
-        {user.username.charAt(0).toUpperCase()}
+        {displayName.charAt(0).toUpperCase()}
       </button>
 
       {open && (
@@ -73,8 +76,9 @@ export function UserMenu() {
           <p className="border-b border-line px-4 py-3">
             <span className="block text-xs text-muted">Signed in as</span>
             <span className="block truncate text-sm font-medium text-fg">
-              {user.username}
+              {displayName}
             </span>
+            <span className="block truncate text-xs text-muted">{user.email}</span>
           </p>
 
           <Link

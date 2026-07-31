@@ -12,16 +12,27 @@ import { initProgress, setProgressUser } from "@/lib/progressStore";
 
 export interface User {
   id: number;
-  username: string;
+  fullName: string;
+  email: string;
+  phone: string;
   createdAt: string;
+}
+
+/** The fields collected by the signup form. */
+export interface SignupInput {
+  fullName: string;
+  phone: string;
+  email: string;
+  password: string;
+  confirmPassword: string;
 }
 
 interface AuthValue {
   user: User | null;
   /** False until the first `/api/auth/me` response, so the UI can avoid flicker. */
   loading: boolean;
-  login: (username: string, password: string) => Promise<void>;
-  signup: (username: string, password: string) => Promise<void>;
+  login: (email: string, password: string) => Promise<void>;
+  signup: (input: SignupInput) => Promise<void>;
   logout: () => Promise<void>;
 }
 
@@ -65,11 +76,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   /** Shared by login and signup: both return the user and set the cookie. */
   const authenticate = useCallback(
-    async (endpoint: "login" | "signup", username: string, password: string) => {
+    async (endpoint: "login" | "signup", payload: Record<string, string>) => {
       const response = await fetch(`/api/auth/${endpoint}/`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username, password }),
+        body: JSON.stringify(payload),
       });
 
       const data: { user?: User; error?: string } = await response
@@ -90,8 +101,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     () => ({
       user,
       loading,
-      login: (username, password) => authenticate("login", username, password),
-      signup: (username, password) => authenticate("signup", username, password),
+      login: (email, password) => authenticate("login", { email, password }),
+      signup: (input) => authenticate("signup", { ...input }),
       logout: async () => {
         await fetch("/api/auth/logout/", { method: "POST" }).catch(() => {});
         setUser(null);
